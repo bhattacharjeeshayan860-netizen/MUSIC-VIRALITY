@@ -18,7 +18,7 @@ print(f"Starting data collection for {total_input_count} queries...\n")
 
 for query_idx, query in enumerate(QUERIES, 1):
     print(f"[{query_idx}/{total_input_count}] Searching for {query}...")
-    videos = client.fetch_music_videos(query=query, max_results=20, order="date", max_pages=3)
+    videos = client.fetch_music_videos(query=query, max_results=50, max_pages=3)
     if not videos:
         continue
     time.sleep(1)  # Respect API rate limits
