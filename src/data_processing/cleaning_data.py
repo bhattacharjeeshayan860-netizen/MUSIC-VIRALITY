@@ -5,12 +5,20 @@ def load_raw_data(file_path="music_virality_data.csv"):
     data=pd.read_csv(file_path)
     new_df=data.copy()
     return new_df
+def handle_missing_values(new_df):
+    print("NA counts for each column:")
+    print(new_df.isna().sum())
+    new_df=new_df.dropna(subset=["video_id","collected_at","views_count"])
+    return new_df
+
 def convert_datetime(new_df):
     new_df["collected_at"]=pd.to_datetime(new_df["collected_at"])
+    new_df["published_at"]=pd.to_datetime(new_df["published_at"])
     return new_df
 
 def create_date_column(new_df):
     new_df["date"]=new_df["collected_at"].dt.date
+    new_df["day_since_published"]=(new_df["collected_at"]-new_df["published_at"]).dt.days
     return new_df
 
 def remove_noise_duplicates(new_df):
@@ -47,5 +55,15 @@ def merge_existing_data(new_df,existing_df):
             return df
 
 def save_cleaned_data(df):
-        df.to_csv("clean_music_virality_data.csv",index=False,)
+        df.to_csv("data/processed/clean_music_virality_data.csv",index=False,)
+def run_pipeline():
+    new_df=load_raw_data()
+    new_df=handle_missing_values(new_df)
+    new_df=convert_datetime(new_df)
+    new_df=create_date_column(new_df)
+    new_df=remove_noise_duplicates(new_df)
+    new_df=sort_date(new_df)
+    existing_df=load_existing_data()
+    df=merge_existing_data(new_df,existing_df)
+    save_cleaned_data(df)
     
