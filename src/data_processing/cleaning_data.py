@@ -56,7 +56,7 @@ def merge_existing_data(new_df,existing_df):
 
 def save_cleaned_data(df):
         df.to_csv("data/processed/clean_music_virality_data.csv",index=False,)
-def run_pipeline():
+def run_cleaning_pipeline():
     new_df=load_raw_data()
     new_df=handle_missing_values(new_df)
     new_df=convert_datetime(new_df)
