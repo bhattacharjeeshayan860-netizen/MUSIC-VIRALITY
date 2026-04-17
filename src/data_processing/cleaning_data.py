@@ -1,19 +1,19 @@
 import pandas as pd
 import os
 
-def load_raw_data(file_path="music_virality_data.csv"):
+def load_raw_data(file_path="data/raw/music_virality_data.csv"):
     data=pd.read_csv(file_path)
     new_df=data.copy()
     return new_df
 def handle_missing_values(new_df):
     print("NA counts for each column:")
     print(new_df.isna().sum())
-    new_df=new_df.dropna(subset=["video_id","collected_at","views_count"])
+    new_df=new_df.dropna(subset=["video_id","collected_at","view_count"])
     return new_df
 
 def convert_datetime(new_df):
-    new_df["collected_at"]=pd.to_datetime(new_df["collected_at"])
-    new_df["published_at"]=pd.to_datetime(new_df["published_at"])
+    new_df["collected_at"]=pd.to_datetime(new_df["collected_at"],errors="coerce").dt.tz_localize(None)
+    new_df["published_at"]=pd.to_datetime(new_df["published_at"],errors="coerce").dt.tz_localize(None)
     return new_df
 
 def create_date_column(new_df):
