@@ -1,8 +1,10 @@
-from src.training.select_features import get_X_y
+from src.features.build_features import get_X_y
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, confusion_matrix
+from xgboost import XGBClassifier
+import joblib
 
 def run_training_pipeline():
     X, y = get_X_y()
@@ -19,26 +21,10 @@ def run_training_pipeline():
         stratify=stratify,
     )
 
-    model1 = RandomForestClassifier(
-        n_estimators=200,
-        max_depth=10,
-        min_samples_split=5,
-        min_samples_leaf=2,
-        class_weight="balanced",
-        random_state=42,
-        n_jobs=-1,
-    )
-    model3 = LogisticRegression(
-        max_iter=1000,
-        class_weight="balanced",
-        random_state=42,
-    )
+#Random forest did well but the got overfitted as it made no mistakes on the test set.
+#logistic regression did way too bad, so I removed it from the final model selection
 
-    models = {"Random Forest": model1, "Logistic Regression": model3}
-    try:
-        from xgboost import XGBClassifier  # type: ignore
-
-        models["XGBoost"] = XGBClassifier(
+    model = XGBClassifier(
             n_estimators=300,
             max_depth=6,
             learning_rate=0.05,
@@ -48,20 +34,19 @@ def run_training_pipeline():
             random_state=42,
             eval_metric="logloss",
         )
-    except ModuleNotFoundError:
-        print("xgboost is not installed; skipping XGBoost model.")
 
-    for name, model in models.items():
-        print(f"Training {name}...")
-        model.fit(x_train, y_train)
+
+    print(f"Training XGBoost...")
+    model.fit(x_train, y_train)
 
     print("Training complete.")
-    for name, model in models.items():
-        print(f"Evaluation for {name}:")
-        preds = model.predict(x_test)
-        print("Confusion Matrix: \n")
-        print(confusion_matrix(y_test, preds))
-        print("\nClassification Report: \n")
-        print(classification_report(y_test, preds))
+    print(f"Evaluation for XGBoost:")
+    preds = model.predict(x_test)
+    print("Confusion Matrix: \n")
+    print(confusion_matrix(y_test, preds))
+    print("\nClassification Report: \n")
+    print(classification_report(y_test, preds))
+    joblib.dump(model, "models/trained/model.pkl")
+    print("Model saved to models/trained/model.pkl")
 
     return

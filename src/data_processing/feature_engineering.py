@@ -75,7 +75,6 @@ def save_feature_engineered_data(df):
 
 def run_feature_engineering_pipeline():
     df=load_data()
-    df=df.dropna()
     if df.empty:
         print("no data to process.")
         return pd.DataFrame()

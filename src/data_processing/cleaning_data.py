@@ -30,7 +30,7 @@ def sort_date(new_df):
     new_df=new_df.sort_values(by=["date","video_id"])
     return new_df
 
-def load_existing_data(file_path="clean_music_virality_data.csv"):
+def load_existing_data(file_path="data/processed/clean_music_virality_data.csv"):
     if os.path.exists(file_path):
         existing_df=pd.read_csv(file_path)
         existing_df=convert_datetime(existing_df)
@@ -44,11 +44,20 @@ def load_existing_data(file_path="clean_music_virality_data.csv"):
 
 def merge_existing_data(new_df,existing_df):
         if not existing_df.empty:
-            df=pd.concat([existing_df,new_df],ignore_index=True)
-            df=convert_datetime(df)
-            df=create_date_column(df)
-            df=remove_noise_duplicates(df)
-            df=sort_date(df)
+            df = pd.concat([existing_df, new_df], ignore_index=True)
+
+            df = convert_datetime(df)
+            df = create_date_column(df)
+
+            df = df.sort_values(by=["video_id", "collected_at"])
+
+            df = (
+                df.groupby(["video_id", "date"])
+                .last()
+                .reset_index()
+            )
+
+            df = sort_date(df)
             return df
         else:
             df=new_df    
