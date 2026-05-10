@@ -1,4 +1,4 @@
-from src.features.build_features import get_X_y
+from src.features.build_detections_features import get_X_y
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
