@@ -19,10 +19,10 @@ QUERIES =[
     "rap shorts", "hip hop reels", "music shorts",
 
     # Regional expansion
-    "tamil rap", "telugu rap", "bengali rap","punjabi songs","marathi rap","assamese rap"
+    "tamil rap", "telugu rap", "bengali rap","punjabi songs","marathi rap","assamese rap",
 
     #time-based
-    "new songs 2026","latest songs today","trending songs this week","new music releases"
+    "new songs 2026","latest songs today","trending songs this week","new music releases",
 
     #platfrom-specific
     "youtube trending songs","trending music videos",

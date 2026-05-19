@@ -30,6 +30,13 @@ Run the dashboard:
 make run
 ```
 
+Train / rebuild datasets + models:
+```bash
+python main.py
+```
+
+Note (Windows): the `Makefile` targets may require Git Bash/WSL. If `make` isn't available, run the commands directly (e.g. `pip install -r requirements.txt`, `streamlit run dashboard/app.py`).
+
 Run tests:
 ```bash
 make test

@@ -6,12 +6,21 @@ import json
 
 BASE_URL="https://www.googleapis.com/youtube/v3"
 
+
+def _mask_key(params: dict) -> dict:
+    """Return a shallow-copied params dict with API key masked for safe logging."""
+    if not isinstance(params, dict):
+        return {}
+    masked = dict(params)
+    if "key" in masked and masked["key"]:
+        masked["key"] = "***"
+    return masked
+
 class YouTubeClient:
     def __init__(self):
         load_dotenv()
         self.base_url = BASE_URL
         self.api_key = os.getenv("YOUTUBE_API_KEY")
-        print(self.api_key)
         if not self.api_key:
             raise ValueError("Youtube API key not found.please set YOUTUBE_API_KEY in .env")
     
@@ -23,24 +32,32 @@ class YouTubeClient:
             error_code = error.get("code")
             error_message = error.get("message", "Unknown error")
             
-            if error_code == 400:
-                # Parse error details
-                errors = error.get("errors", [])
-                if errors:
-                    reason = errors[0].get("reason", "unknown")
-                    domain = errors[0].get("domain", "unknown")
-                    print(f"\n⚠️  YouTube API 400 Error on {endpoint}:")
-                    print(f"   Reason: {reason}")
-                    print(f"   Domain: {domain}")
-                    print(f"   Message: {error_message}\n")
-                    return reason
-            print(f"Error ({error_code}) on {endpoint}: {error_message}")
+            # Parse error details
+            errors = error.get("errors", [])
+            reason = errors[0].get("reason", "unknown") if errors else "unknown"
+            domain = errors[0].get("domain", "unknown") if errors else "unknown"
+            print(f"\n[Warning] YouTube API Error on {endpoint}:")
+            print(f"   HTTP Status: {response.status_code}")
+            if error_code is not None:
+                print(f"   Code: {error_code}")
+            print(f"   Reason: {reason}")
+            print(f"   Domain: {domain}")
+            print(f"   Message: {error_message}\n")
+            return reason
         except:
             pass
         return None
         
         
-    def fetch_music_videos(self, query, max_results=10, max_pages=1, order="relevance", region_code=None):
+    def fetch_music_videos(
+        self,
+        query,
+        max_results=10,
+        max_pages=1,
+        order="relevance",
+        region_code=None,
+        published_after="2026-04-01T00:00:00Z",
+    ):
         """Search videos and return CLEAN list of dicts"""
         next_page_token = None
         videos = []
@@ -53,8 +70,12 @@ class YouTubeClient:
                 "type": "video",
                 "maxResults": max_results,
                 "order": order,  # Added: relevance, date, rating, title, videoCount, viewCount
+                "publishedAfter": published_after,
                 "key": self.api_key,
             }
+
+            if not published_after:
+                params.pop("publishedAfter", None)
             
             # Add optional region code if provided
             if region_code:
@@ -69,7 +90,7 @@ class YouTubeClient:
                 # Handle 400 errors before raise_for_status()
                 if response.status_code == 400:
                     self._handle_api_error(response, "search")
-                    print(f"Request params: {params}")
+                    print(f"Request params: {_mask_key(params)}")
                     return []
                     
                 response.raise_for_status()
@@ -90,7 +111,13 @@ class YouTubeClient:
                     break
                     
         except requests.RequestException as e:
-            print(f"Error fetching music videos: {e}")
+            # Avoid printing raw exception text; it may contain the full URL with API key.
+            resp = getattr(e, "response", None)
+            if resp is not None:
+                self._handle_api_error(resp, "search")
+                print(f"Error fetching music videos: HTTP {resp.status_code} on search")
+            else:
+                print(f"Error fetching music videos: {type(e).__name__}")
             return []
         return videos
 
@@ -116,7 +143,7 @@ class YouTubeClient:
                 # Handle 400 errors before raise_for_status()
                 if response.status_code == 400:
                     self._handle_api_error(response, "videos")
-                    print(f"Request params: {params}")
+                    print(f"Request params: {_mask_key(params)}")
                     continue
                     
                 response.raise_for_status()
@@ -130,7 +157,12 @@ class YouTubeClient:
                         "duration": item.get("contentDetails", {}).get("duration")
                     })
             except requests.RequestException as e:
-                print(f"Error fetching video details batch: {e}")
+                resp = getattr(e, "response", None)
+                if resp is not None:
+                    self._handle_api_error(resp, "videos")
+                    print(f"Error fetching video details batch: HTTP {resp.status_code} on videos")
+                else:
+                    print(f"Error fetching video details batch: {type(e).__name__}")
                 continue
         
         return stats
@@ -157,7 +189,7 @@ class YouTubeClient:
                 # Handle 400 errors before raise_for_status()
                 if response.status_code == 400:
                     self._handle_api_error(response, "channels")
-                    print(f"Request params: {params}")
+                    print(f"Request params: {_mask_key(params)}")
                     continue
                     
                 response.raise_for_status()
@@ -168,7 +200,12 @@ class YouTubeClient:
                         "subscriber_count": int(item.get("statistics", {}).get("subscriberCount", 0))
                     })
             except requests.RequestException as e:
-                print(f"Error fetching channel details batch: {e}")
+                resp = getattr(e, "response", None)
+                if resp is not None:
+                    self._handle_api_error(resp, "channels")
+                    print(f"Error fetching channel details batch: HTTP {resp.status_code} on channels")
+                else:
+                    print(f"Error fetching channel details batch: {type(e).__name__}")
                 continue
         
         return channels

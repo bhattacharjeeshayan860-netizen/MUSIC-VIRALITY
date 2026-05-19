@@ -1,6 +1,8 @@
 import pandas as pd
 import os
-def load_data(file_path="data/processed/laelen_music_virality_data.csv"):
+
+
+def load_data(file_path: str = "data/processed/final_labelled_music_virality_data.csv"):
     if os.path.exists(file_path):
         new_df = pd.read_csv(file_path)
         df = new_df.copy()
@@ -33,3 +35,18 @@ def save_future_labeled_data(
         return pd.DataFrame()
     df.to_csv(file_path,index=False)
     print(f"Future labeled data saved.")
+
+
+def run_future_labeling_pipeline(
+    input_path: str = "data/processed/final_labelled_music_virality_data.csv",
+    output_path: str = "data/processed/future_labeled_music_virality_data.csv",
+    future_steps: int = 3,
+):
+    df = load_data(file_path=input_path)
+    if df.empty:
+        print("No data available for future labeling.")
+        return pd.DataFrame()
+
+    df = create_future_labels(df, future_steps=future_steps)
+    save_future_labeled_data(df, file_path=output_path)
+    return df
