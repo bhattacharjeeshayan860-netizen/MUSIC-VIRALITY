@@ -35,7 +35,15 @@ Train / rebuild datasets + models:
 python main.py
 ```
 
-Note (Windows): the `Makefile` targets may require Git Bash/WSL. If `make` isn't available, run the commands directly (e.g. `pip install -r requirements.txt`, `streamlit run dashboard/app.py`).
+Note (Windows): the `Makefile` targets may require Git Bash/WSL. If `make` isn't available, run the commands directly (e.g. `pip install -r requirements.txt`, `streamlit run dashboard.py`).
+
+If you hit `streamlit` not recognized / command not found, run via Python instead:
+```bash
+python -m pip install -r requirements.txt
+python -m streamlit run dashboard.py
+```
+
+Note: the Streamlit entrypoint for the dashboard is `dashboard.py`.
 
 Run tests:
 ```bash

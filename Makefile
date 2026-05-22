@@ -1,5 +1,7 @@
 .PHONY: help install test run clean lint format
 
+PYTHON ?= python
+
 help:
 	@echo "Available commands:"
 	@echo "  make install     - Install dependencies"
@@ -10,13 +12,13 @@ help:
 	@echo "  make format      - Format code"
 
 install:
-	pip install -r requirements.txt
+	$(PYTHON) -m pip install -r requirements.txt
 
 test:
 	pytest tests/
 
 run:
-	streamlit run dashboard/app.py
+	$(PYTHON) -m streamlit run dashboard.py
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +

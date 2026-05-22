@@ -1,31 +1,34 @@
 """Configuration settings for the music virality system."""
 QUERIES =[
-    # Core
-    "indian hip hop", "desi hip hop", "hindi rap", "punjabi rap","hindi songs latest",
-
-    # Global
-    "english rap", "trap music", "drill rap","english songs","pop music",
-
-    # Discovery
-    "new rap songs", "latest hip hop", "underground rap",
-
-    # Artist-based
-    "Emiway Bantai", "KRSNA", "Seedhe Maut", "Stan", "Raftaar","Frank Ocean","kanye west",
-
-    # Mood / algorithm triggers
-    "viral rap", "trending rap", "new music video",
-
-    # Shorts (VERY IMPORTANT 🔥)
-    "rap shorts", "hip hop reels", "music shorts",
-
-    # Regional expansion
-    "tamil rap", "telugu rap", "bengali rap","punjabi songs","marathi rap","assamese rap",
-
-    #time-based
-    "new songs 2026","latest songs today","trending songs this week","new music releases",
-
-    #platfrom-specific
-    "youtube trending songs","trending music videos",
+    "new rap song 2026",
+    "new hip hop 2026",
+    "trap music new 2026",
+    "drill rap new 2026",
+    "underground rap new 2026",
+    
+    # Global pop
+    "new pop song 2026",
+    "new english song 2026",
+    "new rnb song 2026",
+    
+    # Global artists
+    "Drake new",
+    "Travis Scott new",
+    "Kendrick Lamar new",
+    "SZA new song",
+    
+    # Indian mainstream
+    "new hindi songs 2026",
+    "punjabi songs new 2026",
+    "bollywood new song 2026",
+    
+    # Shorts global
+    "rap shorts new 2026",
+    "viral music shorts india",
+    
+    # Time-based
+    "new music video this week",
+    "most viewed indian song 2026",
 ]
 
 
