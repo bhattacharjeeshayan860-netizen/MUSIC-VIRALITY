@@ -7,12 +7,25 @@ from src.api.youtube_client import YouTubeClient
 from config.config import QUERIES
 import pandas as pd
 import time
-from datetime import datetime 
+from datetime import datetime, date
+
+
+def get_already_collected_today(existing_csv="data/raw/music_virality_data.csv"):
+    """Returns set of video_ids already collected today — skip these."""
+    try:
+        df = pd.read_csv(existing_csv)
+        df["collected_at"] = pd.to_datetime(df["collected_at"])
+        collected_today = df[df["collected_at"].dt.date == date.today()]
+        return set(collected_today["video_id"].tolist())
+    except FileNotFoundError:
+        return set()
 
 client = YouTubeClient()
 blocks=[] #to store data for each queries
 total_input_count = len(QUERIES)
 total_videos_collected = 0
+
+already_collected_today = get_already_collected_today()
 
 print(f"Starting data collection for {total_input_count} queries...\n")
 
@@ -21,6 +34,13 @@ for query_idx, query in enumerate(QUERIES, 1):
     videos = client.fetch_music_videos(query=query, max_results=50, max_pages=3)
     if not videos:
         continue
+
+    # Skip videos already collected today (from prior runs and earlier queries in this run)
+    videos = [v for v in videos if v.get("video_id") and v["video_id"] not in already_collected_today]
+    if not videos:
+        print(f"No new videos to collect for query: {query} (all already collected today)")
+        continue
+
     time.sleep(1)  # Respect API rate limits
     video_ids = [v["video_id"] for v in videos if v["video_id"]]
     video_stats = client.fetch_video_details(video_ids=video_ids)
@@ -50,6 +70,7 @@ for query_idx, query in enumerate(QUERIES, 1):
                        "collected_at": datetime.now().isoformat()
                        })
         total_videos_collected += 1
+        already_collected_today.add(video_id)
     print(f"Collected {len(videos)} videos for query: {query}")
 
 

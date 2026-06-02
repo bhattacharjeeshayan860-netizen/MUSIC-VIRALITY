@@ -1,34 +1,34 @@
 """Configuration settings for the music virality system."""
 QUERIES =[
-    "new rap song 2026",
-    "new hip hop 2026",
-    "trap music new 2026",
-    "drill rap new 2026",
-    "underground rap new 2026",
+    # Indian core
+    "indian hip hop 2026",
+    "desi hip hop new song",
+    "hindi rap new 2026",
+    "punjabi rap new 2026",
     
-    # Global pop
-    "new pop song 2026",
-    "new english song 2026",
-    "new rnb song 2026",
+    # Regional
+    "tamil rap new song 2026",
+    "telugu rap new 2026",
+    "bengali rap new song",
+    "marathi rap 2026",
     
-    # Global artists
-    "Drake new",
-    "Travis Scott new",
-    "Kendrick Lamar new",
-    "SZA new song",
+    # Indian artists
+    "Emiway Bantai new song",
+    "KRSNA new song",
+    "Seedhe Maut new",
+    "Divine new song",
+    "Hanumankind new",
     
-    # Indian mainstream
-    "new hindi songs 2026",
-    "punjabi songs new 2026",
-    "bollywood new song 2026",
+    # Shorts
+    "hindi rap shorts 2026",
+    "desi hip hop shorts",
+    "indian music shorts new",
     
-    # Shorts global
-    "rap shorts new 2026",
-    "viral music shorts india",
-    
-    # Time-based
-    "new music video this week",
-    "most viewed indian song 2026",
+    # Discovery
+    "viral song india 2026",
+    "trending indian song 2026",
+    "breakout artist india 2026",
 ]
+
 
 
