@@ -39,11 +39,6 @@ FEATURE_COLUMNS = [
     "likes_diff",
     "engagement_diff",
 
-    # --- Scale (safe here because label = FUTURE snapshot views) ---
-    "view_count_log",
-    "like_count_log",
-    "comment_count_log",
-
     # --- Channel authority ---
     "subscriber_count_log",
     "views_to_subs_ratio",

@@ -52,7 +52,6 @@ FEATURE_COLS = [
     "comment_like_ratio",
 
     # --- Velocity (your original, correct) ---
-    "views_per_day",
     "likes_per_day",
     "comments_per_day",
 
@@ -70,7 +69,7 @@ FEATURE_COLS = [
     "channel_tier",
 
     # --- Video age context (NEW) ---
-    "days_log",
+    
     "age_bucket",
 
     # --- Video format (NEW) ---
@@ -81,8 +80,6 @@ FEATURE_COLS = [
     "snapshot_rank",
     "snapshot_count",
 
-    # NOTE: view_count_log is intentionally excluded from detection features.
-    # It is a direct proxy for the label. See audit log above.
 ]
 
 
