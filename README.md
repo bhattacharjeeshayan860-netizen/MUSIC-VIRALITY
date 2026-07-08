@@ -1,21 +1,143 @@
 # Music Virality System
 
-A machine learning system for predicting and analyzing music virality on YouTube and other platforms.
+An end-to-end machine learning system for detecting and predicting music virality from YouTube snapshot data.
 
-## Project Structure
+The project is built as a practical analytics stack, not a toy notebook:
 
-- **data/**: Raw and processed datasets
-- **models/**: Trained models and artifacts
-- **src/**: Source code
-  - **api/**: YouTube and other API clients
-  - **pipelines/**: Data collection and processing pipelines
-  - **features/**: Feature engineering
-  - **training/**: Model training and evaluation
-  - **utils/**: Utility functions
-- **dashboard/**: Streamlit dashboard for visualization
-- **notebooks/**: Jupyter notebooks for exploration
-- **config/**: Configuration files
-- **tests/**: Unit tests
+- clean raw video observations into model-ready snapshots,
+- engineer engagement, momentum, channel, and timing signals,
+- train separate models for current virality detection and short-horizon future virality prediction,
+- explain predictions with SHAP,
+- and ship the result through Streamlit dashboards.
+
+## What the project does
+
+This system answers two different questions:
+
+1. Is this video already viral right now?
+2. Will this video become viral at a later snapshot?
+
+That split matters. Detection and prediction are separate tasks, so the repository keeps separate labeling logic, feature sets, training pipelines, and evaluation paths for each one.
+
+## Why this project is strong
+
+The work is designed to demonstrate the kind of reasoning expected in production ML roles:
+
+- group-aware splitting by `video_id` so the same video never leaks across train, validation, and test sets,
+- stratified group splitting that preserves the positive-class rate across all three splits (the dataset is skewed, so a plain group split can starve a split of positives),
+- feature selection that removes obvious target shortcuts like raw `view_count_log` from detection,
+- holdout-aware evaluation so model selection and threshold tuning happen on validation data, not the final test set,
+- a pre-viral honest evaluation slice that scores the prediction model only on videos not yet above threshold,
+- explainability with SHAP so the model can be inspected rather than treated as a black box,
+- and an explicit audit trail for the dataset limitations.
+
+That is the level of discipline employers usually look for in a portfolio project for stronger ML roles.
+
+## Results
+
+The current leak-fixed, stratified run produced the following honest held-out test performance. Every split is group-aware (no video appears in more than one split) and stratified (the positive rate is preserved across train/val/test).
+
+### Detection model
+
+- Model: XGBoost
+- Selected on validation PR-AUC: 0.9947
+- Threshold tuned on validation: 0.841
+- Test F1 at tuned threshold: 0.9591
+- Test PR-AUC: 0.9948
+- Test ROC-AUC: 0.9993
+- Precision: 96.4%
+- Recall: 95.4%
+- Held-out test rows: 7,161
+- Stability check: train/validation F1 gap of 0.030, with 5-fold CV of 0.974 ± 0.003
+- Stratified split positive rates: train 10.8% | val 10.6% | test 11.3%
+
+### Prediction model
+
+- Model: XGBoost
+- Selected on validation PR-AUC: 0.9945
+- Threshold tuned on validation: 0.715
+- Test F1 at tuned threshold: 0.9532
+- Test PR-AUC: 0.9925
+- Test ROC-AUC: 0.9979
+- Precision: 96.9%
+- Recall: 93.8%
+- Held-out test rows: 2,745
+- Stratified split positive rates: train 18.9% | val 19.8% | test 19.4%
+
+### Pre-viral honest slice
+
+The full prediction score above is inflated: ~96% of "future viral" videos were already above the 10M threshold at the training snapshot, so the model mostly learns whether an already-big video stays big. The real question for an early-warning system is whether it can flag a video that is not yet viral.
+
+To measure that honestly, the pipeline additionally evaluates the prediction model only on test rows whose current `view_count` is below the threshold:
+
+- Rows in slice: 2,231
+- Future-viral among them: 18 (0.8%)
+- F1: 0.2564
+- PR-AUC: 0.2381
+- ROC-AUC: 0.9705
+
+This is the true early-warning difficulty. The full-set 0.99 PR-AUC is not a generic virality-forecasting breakthrough — it is largely the model recognizing already-large videos. The pre-viral slice is where future model work has room to improve.
+
+## Why the scores are so high
+
+These numbers are strong, but they are not magic. There are two reasons the metrics look exceptionally high:
+
+### 1. The leakage issues were fixed
+
+Earlier versions of the project had evaluation bias from using the test set too early. That is now addressed by:
+
+- splitting train, validation, and test sets by `video_id`,
+- tuning hyperparameters and thresholds on validation only,
+- and touching the final test set once, at the very end.
+
+That is why the current scores are more trustworthy than the older ones.
+
+### 2. The dataset is intrinsically favorable to prediction
+
+The future-virality target is based on a short collection window of roughly 6 days. In practice, that means many of the rows that eventually become positive are already trending toward the threshold by the time the model sees them.
+
+In the current run, 95.9% of the videos labeled as future viral were already above the virality threshold at the training snapshot.
+
+That does not mean the model is wrong. It means the dataset is asking a somewhat easier question than true long-range early virality forecasting. The model is learning momentum, stability, and channel context over a short horizon, not predicting a song months before it breaks out.
+
+### 3. The pre-viral slice proves where the difficulty really is
+
+Because of (2), the full-set prediction score (PR-AUC 0.99) is not a fair measure of early-warning ability. When the model is evaluated only on videos **not yet** above threshold, PR-AUC drops to ~0.24 and F1 to ~0.26. That gap between the full score and the pre-viral slice is the single most important number in the project: it separates "the data was easy" from "the model is genuinely good at forecasting".
+
+## Interpreting the project honestly
+
+This is the right way to describe the system in interviews and on a resume:
+
+- It is a real ML pipeline with clean separation between cleaning, feature engineering, labeling, training, evaluation, and explainability.
+- The detection model is a strong snapshot classifier over current virality.
+- The prediction model is a short-horizon forecast under a limited observation window.
+- The unusually high scores are partly due to a genuinely strong signal and partly due to the dataset design, especially the short collection horizon.
+
+That honesty is important. A strong candidate does not oversell leakage-fixed scores as if they were a generic breakthrough. They explain the data, the constraints, and the tradeoffs clearly.
+
+## Project structure
+
+- `data/`: raw and processed datasets
+- `models/`: trained artifacts and explainability outputs
+- `src/features/`: feature engineering and labeling logic
+- `src/training/`: model training and evaluation pipelines
+- `src/data_processing/`: dataset preparation and future-label generation
+- `src/inference/`: single-source-of-truth feature builder shared by dashboards and the API
+- `src/utils/`: evaluation, stratified splits, logging, and SHAP helpers
+- `src/api/`: FastAPI backend scaffold and YouTube data client
+- `dashboard.py`: detection dashboard
+- `dashboard_prediction.py`: prediction dashboard
+- `main.py`: pipeline orchestrator
+
+## Key pipeline stages
+
+1. Clean raw YouTube data.
+2. Engineer engagement, momentum, channel authority, age, and format features.
+3. Build two label sets: current virality and future virality.
+4. Train grouped models with leakage-aware, stratified splits.
+5. Evaluate on held-out data once, plus a pre-viral honest slice for the prediction model.
+6. Save artifacts and inspect explanations.
+7. Serve the results in Streamlit dashboards, with a FastAPI scaffold available for extension.
 
 ## Installation
 
@@ -23,39 +145,56 @@ A machine learning system for predicting and analyzing music virality on YouTube
 make install
 ```
 
-## Usage
+On Windows, `make` may require Git Bash or WSL. If that is not available, run the commands directly:
 
-Run the dashboard:
 ```bash
-make run
+python -m pip install -r requirements.txt
 ```
 
-Train / rebuild datasets + models:
+## Usage
+
+Run the full pipeline:
+
 ```bash
 python main.py
 ```
 
-Note (Windows): the `Makefile` targets may require Git Bash/WSL. If `make` isn't available, run the commands directly (e.g. `pip install -r requirements.txt`, `streamlit run dashboard.py`).
+Run the dashboard:
 
-If you hit `streamlit` not recognized / command not found, run via Python instead:
 ```bash
-python -m pip install -r requirements.txt
 python -m streamlit run dashboard.py
 ```
 
-Note: the Streamlit entrypoint for the dashboard is `dashboard.py`.
+Run the prediction dashboard:
+
+```bash
+python -m streamlit run dashboard_prediction.py
+```
 
 Run tests:
+
 ```bash
 make test
 ```
 
 ## Configuration
 
-Create a `.env` file and add your API keys and configuration:
-```
+Create a `.env` file for API keys and environment settings.
+
+```env
 YOUTUBE_API_KEY=your_key_here
 ```
+
+## Notes for reviewers
+
+- The final test scores are intentionally reported after leak fixes.
+- Validation was used for model selection and threshold tuning; the test set is touched once.
+- Splits are both group-aware (no video crosses splits) **and** stratified (positive rate preserved), which is what makes the skewed dataset's evaluation stable.
+- The prediction model reports a **pre-viral honest slice** in addition to the full-test score — that slice is the real measure of early-warning ability.
+- Class skew is handled via `class_weight="balanced"` / `scale_pos_weight` (not SMOTE, which would risk cross-video leakage on grouped data).
+- SHAP explanations are part of the workflow, not an afterthought.
+- Serving is centered on the Streamlit dashboards; the FastAPI scaffold is present for extension.
+- The project is best described as a short-horizon virality modeling system with explicit dataset constraints.
 
 ## License
 

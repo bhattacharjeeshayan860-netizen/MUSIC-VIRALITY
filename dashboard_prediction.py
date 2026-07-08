@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 import joblib
 
+from src.inference import build_feature_vector
+
 # ─────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────
@@ -67,37 +69,24 @@ with col2:
     duration_seconds = st.number_input("🕒 Duration (seconds)", min_value=10, value=210, key="duration_seconds")
 
 # ─────────────────────────────────────────────
-# DERIVED FEATURES (computed every rerun — all 25, matching training exactly)
+# DERIVED FEATURES — built by the shared inference module so the columns always
+# match what the model was trained on (19 features). Hardcoding them here is what
+# previously broke inference (extra view_count_log / days_log / views_per_day / ...
+# columns the model never saw).
 # ─────────────────────────────────────────────
+features = build_feature_vector(
+    views=views, likes=likes, comments=comments,
+    subscribers=subscribers, days_old=days_old, duration_seconds=duration_seconds,
+)
+
+# Interpretability values for the report below
 like_rate = likes / views if views > 0 else 0.0
 comment_rate = comments / views if views > 0 else 0.0
 engagement_rate = (likes + 2 * comments) / views if views > 0 else 0.0
-comment_like_ratio = comments / likes if likes > 0 else 0.0
-
 views_per_day = views / days_old
 likes_per_day = likes / days_old
 comments_per_day = comments / days_old
-
-# No second snapshot available in single-snapshot mode -> momentum features default to 0
-# (the imputer was fit to handle this; it is NOT the same as leaving them out)
-views_growth_rate = 0.0
-views_acceleration = 0.0
-views_diff = 0.0
-likes_diff = 0.0
-engagement_diff = 0.0
-
-view_count_log = np.log1p(views)
-like_count_log = np.log1p(likes)
-comment_count_log = np.log1p(comments)
-subscriber_count_log = np.log1p(subscribers)
-
 views_to_subs_ratio = views / subscribers if subscribers > 0 else 0.0
-views_per_day_per_sub = (views_per_day / subscribers) if subscribers > 0 else 0.0
-
-days_log = np.log1p(days_old)
-duration_log = np.log1p(duration_seconds)
-is_short_video = 1.0 if duration_seconds < 180 else 0.0  # < 3 min, typical short-form cutoff
-
 if subscribers < 10_000:
     channel_tier = 0
 elif subscribers < 100_000:
@@ -108,62 +97,6 @@ elif subscribers < 10_000_000:
     channel_tier = 3
 else:
     channel_tier = 4
-
-if days_old <= 7:
-    age_bucket = 0
-elif days_old <= 30:
-    age_bucket = 1
-elif days_old <= 90:
-    age_bucket = 2
-elif days_old <= 365:
-    age_bucket = 3
-else:
-    age_bucket = 4
-
-# Single-snapshot mode: rank 1 of 1
-snapshot_rank = 1
-snapshot_count = 1
-
-# Exact 25 features, exact order the model was trained on
-FEATURE_COLUMNS = [
-    "like_rate", "comment_rate", "engagement_rate", "comment_like_ratio",
-    "views_per_day", "likes_per_day", "comments_per_day",
-    "views_growth_rate", "views_acceleration", "views_diff",
-    "likes_diff", "engagement_diff",
-    "view_count_log", "like_count_log", "comment_count_log",
-    "subscriber_count_log", "views_to_subs_ratio", "views_per_day_per_sub",
-    "channel_tier", "days_log", "age_bucket",
-    "duration_log", "is_short_video",
-    "snapshot_rank", "snapshot_count",
-]
-
-features = pd.DataFrame([{
-    "like_rate": like_rate,
-    "comment_rate": comment_rate,
-    "engagement_rate": engagement_rate,
-    "comment_like_ratio": comment_like_ratio,
-    "views_per_day": views_per_day,
-    "likes_per_day": likes_per_day,
-    "comments_per_day": comments_per_day,
-    "views_growth_rate": views_growth_rate,
-    "views_acceleration": views_acceleration,
-    "views_diff": views_diff,
-    "likes_diff": likes_diff,
-    "engagement_diff": engagement_diff,
-    "view_count_log": view_count_log,
-    "like_count_log": like_count_log,
-    "comment_count_log": comment_count_log,
-    "subscriber_count_log": subscriber_count_log,
-    "views_to_subs_ratio": views_to_subs_ratio,
-    "views_per_day_per_sub": views_per_day_per_sub,
-    "channel_tier": channel_tier,
-    "days_log": days_log,
-    "age_bucket": age_bucket,
-    "duration_log": duration_log,
-    "is_short_video": is_short_video,
-    "snapshot_rank": snapshot_rank,
-    "snapshot_count": snapshot_count,
-}])[FEATURE_COLUMNS]
 
 # ─────────────────────────────────────────────
 # PREDICT BUTTON — everything dependent on the prediction lives INSIDE this block
@@ -267,7 +200,7 @@ st.sidebar.header("ℹ️ About This Model")
 st.sidebar.write(f"""
 **Prediction Model (Momentum Stability)**
 - Algorithm: {threshold_info.get('model_name', 'XGBoost')}
-- Features: 25 engineered signals
+- Features: 19 engineered signals
 - Optimal threshold: {optimal_threshold:.4f}
 
 Predicts whether a video's *current growth trajectory*

@@ -28,7 +28,6 @@ FEATURE_COLUMNS = [
     "comment_like_ratio",
 
     # --- Velocity ---
-    "views_per_day",
     "likes_per_day",
     "comments_per_day",
 
@@ -46,7 +45,6 @@ FEATURE_COLUMNS = [
     "channel_tier",
 
     # --- Age context ---
-    "days_log",
     "age_bucket",
 
     # --- Video format ---
@@ -54,8 +52,11 @@ FEATURE_COLUMNS = [
     "is_short_video",
 
     # --- Snapshot metadata ---
+    # snapshot_rank is causally available at inference (1 for a live snapshot).
+    # snapshot_count REMOVED: total snapshots-per-video over the full dataset is
+    # future collection metadata, unknown at single-snapshot inference time
+    # (dashboards hardcode it to 1). Including it leaked "how long we watched".
     "snapshot_rank",
-    "snapshot_count",
 ]
 
 

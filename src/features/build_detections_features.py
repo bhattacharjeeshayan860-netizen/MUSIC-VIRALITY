@@ -77,8 +77,12 @@ FEATURE_COLS = [
     "is_short_video",
 
     # --- Snapshot metadata (NEW) ---
+    # snapshot_rank is causally available at inference (1 for a live snapshot).
+    # snapshot_count REMOVED: it equals the total number of snapshots collected
+    # for a video across the whole dataset — future collection metadata that is
+    # NOT known when scoring a single live snapshot (dashboards only ever see 1).
+    # Using it leaks "how long we kept watching this video" into training.
     "snapshot_rank",
-    "snapshot_count",
 
 ]
 

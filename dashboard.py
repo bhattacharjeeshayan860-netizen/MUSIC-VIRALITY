@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 import joblib
 
+from src.inference import build_feature_vector
+
 # ─────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────
@@ -67,28 +69,23 @@ with col2:
     duration_seconds = st.number_input("🕒 Duration (seconds)", min_value=10, value=60, key="duration_seconds")
 
 # ─────────────────────────────────────────────
-# DERIVED FEATURES (computed every rerun — exact 22 keys your model expects)
+# DERIVED FEATURES — built by the shared inference module so the columns always
+# match what the model was trained on (19 features). Hardcoding them here is what
+# previously broke inference (extra views_per_day / days_log columns).
 # ─────────────────────────────────────────────
+features = build_feature_vector(
+    views=views, likes=likes, comments=comments,
+    subscribers=subscribers, days_old=days_old, duration_seconds=duration_seconds,
+)
+
+# Interpretability values for the report below
 like_rate = likes / views if views > 0 else 0.0
 comment_rate = comments / views if views > 0 else 0.0
 engagement_rate = (likes + 2 * comments) / views if views > 0 else 0.0
-comment_like_ratio = comments / likes if likes > 0 else 0.0
-
 views_per_day = views / days_old
 likes_per_day = likes / days_old
 comments_per_day = comments / days_old
-
-# No second snapshot in single-snapshot mode -> momentum features default to 0
-views_growth_rate = 0.0
-views_acceleration = 0.0
-views_diff = 0.0
-likes_diff = 0.0
-engagement_diff = 0.0
-
-subscriber_count_log = np.log1p(subscribers)
 views_to_subs_ratio = views / subscribers if subscribers > 0 else 0.0
-views_per_day_per_sub = (views_per_day / subscribers) if subscribers > 0 else 0.0
-
 if subscribers < 10_000:
     channel_tier = 0
 elif subscribers < 100_000:
@@ -99,58 +96,6 @@ elif subscribers < 10_000_000:
     channel_tier = 3
 else:
     channel_tier = 4
-
-days_log = np.log1p(days_old)
-if days_old <= 7:
-    age_bucket = 0
-elif days_old <= 30:
-    age_bucket = 1
-elif days_old <= 90:
-    age_bucket = 2
-elif days_old <= 365:
-    age_bucket = 3
-else:
-    age_bucket = 4
-
-duration_log = np.log1p(duration_seconds)
-is_short_video = 1.0 if duration_seconds < 60 else 0.0
-
-snapshot_rank = 1
-snapshot_count = 1
-
-FEATURE_COLUMNS = [
-    "like_rate", "comment_rate", "engagement_rate", "comment_like_ratio",
-    "views_per_day", "likes_per_day", "comments_per_day",
-    "views_growth_rate", "views_acceleration", "views_diff", "likes_diff", "engagement_diff",
-    "subscriber_count_log", "views_to_subs_ratio", "views_per_day_per_sub",
-    "channel_tier", "days_log", "age_bucket", "duration_log", "is_short_video",
-    "snapshot_rank", "snapshot_count",
-]
-
-features = pd.DataFrame([{
-    "like_rate": like_rate,
-    "comment_rate": comment_rate,
-    "engagement_rate": engagement_rate,
-    "comment_like_ratio": comment_like_ratio,
-    "views_per_day": views_per_day,
-    "likes_per_day": likes_per_day,
-    "comments_per_day": comments_per_day,
-    "views_growth_rate": views_growth_rate,
-    "views_acceleration": views_acceleration,
-    "views_diff": views_diff,
-    "likes_diff": likes_diff,
-    "engagement_diff": engagement_diff,
-    "subscriber_count_log": subscriber_count_log,
-    "views_to_subs_ratio": views_to_subs_ratio,
-    "views_per_day_per_sub": views_per_day_per_sub,
-    "channel_tier": channel_tier,
-    "days_log": days_log,
-    "age_bucket": age_bucket,
-    "duration_log": duration_log,
-    "is_short_video": is_short_video,
-    "snapshot_rank": snapshot_rank,
-    "snapshot_count": snapshot_count,
-}])[FEATURE_COLUMNS]
 
 # ─────────────────────────────────────────────
 # PREDICT BUTTON
@@ -224,10 +169,8 @@ st.table(benchmark)
 st.sidebar.header("ℹ️ About This Model")
 st.sidebar.write(f"""
 **Detection Model**
-- Algorithm: XGBoost
-- Training Data: 14,300 videos
-- PR-AUC: 0.9989
-- Features: 22 engineered signals
+- Algorithm: {threshold_info.get('model_name', 'XGBoost')}
+- Features: 19 engineered signals
 - Threshold: {optimal_threshold:.4f}
 
 **Virality Definition:**
