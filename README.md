@@ -139,6 +139,45 @@ That honesty is important. A strong candidate does not oversell leakage-fixed sc
 6. Save artifacts and inspect explanations.
 7. Serve the results in Streamlit dashboards, with a FastAPI scaffold available for extension.
 
+## Monitoring & retraining strategy
+
+A model trained on a 6-day snapshot window is not a deploy-and-forget system. It
+will drift, and the project is explicit about the three drift modes that matter:
+
+- **Concept drift from the virality threshold itself.** The 10M-view cutoff is a
+  moving target. Inflation in view counts, platform growth, and regional audience
+  expansion mean "viral" in 2022 is not the same as "viral" in 2026. A fixed
+  threshold slowly mislabels the tail of the distribution. The mitigation is to
+  treat `VIRALITY_THRESHOLD` as a configurable parameter (it already is — see
+  `src/features/labeling.py`) and re-derive it periodically from a fresh
+  percentile of the active video distribution rather than hardcoding it.
+
+- **Covariate drift from YouTube's product changes.** Algorithm changes (e.g.
+  Shorts monetization, recommendation reshuffles, the comment-count display
+  change) shift the distribution of `like_rate`, `comment_rate`, and velocity
+  features even when the underlying "is this song popular" concept is stable.
+  This is the most insidious drift because the model keeps scoring confidently on
+  inputs that no longer mean what they meant at training time. The detection is
+  feature-distribution monitoring: track PSI (population stability index) or KL
+  divergence on the inference feature set against a training baseline, and alert
+  when a feature crosses a threshold rather than waiting for labels to degrade.
+
+- **Label lag.** Virality labels only become trustworthy weeks after a snapshot,
+  so label-based monitoring (PR-AUC / F1 on fresh labeled data) always lags the
+  feature drift. That is why feature-distribution monitoring is the leading
+  indicator and label-based evaluation is the confirming one — never rely on
+  label metrics alone for a system whose ground truth arrives late.
+
+Operationally, the retraining cadence this implies is roughly: re-fit on a fresh
+rolling window every 4–8 weeks, re-tune the decision threshold on the new
+validation set (never carry the old threshold forward — the README's threshold
+tuning is validation-only and per-run), and trigger an out-of-cycle retrain
+whenever two or more monitored features breach their stability band. The
+`pre-viral honest slice` evaluation should be re-run on every retrain because it
+is the only slice that reflects genuine early-warning ability — a model can hold
+its full-set PR-AUC while quietly losing the pre-viral signal that actually
+matters.
+
 ## Installation
 
 ```bash
