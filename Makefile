@@ -15,7 +15,10 @@ install:
 	$(PYTHON) -m pip install -r requirements.txt
 
 test:
-	pytest tests/
+	pytest tests/ -v --cov=src --cov-report=term-missing --cov-report=html
+
+test-fast:
+	pytest tests/ -q
 
 run:
 	$(PYTHON) -m streamlit run dashboard.py

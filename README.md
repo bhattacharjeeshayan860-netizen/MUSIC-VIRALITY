@@ -151,6 +151,45 @@ On Windows, `make` may require Git Bash or WSL. If that is not available, run th
 python -m pip install -r requirements.txt
 ```
 
+## Testing
+
+The repo ships a real pytest suite (not a one-off notebook script). Tests run
+against small synthetic datasets so they are fast, deterministic, and do not
+touch the live YouTube API or the raw data files.
+
+Coverage targets the parts of the codebase where a silent bug would invalidate
+every reported metric — the leak-free split, the labeling logic, the
+feature-engineering invariants, the evaluation utilities, and the
+inference-time feature builder that both dashboards depend on.
+
+```bash
+make test
+# or directly:
+pytest tests/ -v --cov=src --cov-report=term-missing
+```
+
+What is covered:
+
+- `tests/test_splits.py` — group-aware train/val/test split has **no video
+  leakage** across splits, all rows are accounted for, positive-class rate is
+  preserved (stratification), and the no-`video_id` fallback path works.
+- `tests/test_labeling.py` — detection labels are a pure same-row function of
+  `view_count` (no temporal leakage); future labels drop each video's last
+  snapshot (no self-reference leakage) and derive the target from the final
+  snapshot.
+- `tests/test_feature_engineering.py` — ratio/velocity features are NaN-safe
+  against zero views/likes/days; channel-tier, age-bucket, and short-video bins
+  match the documented edges; momentum diffs are NaN on the first snapshot;
+  `view_count_log` is produced for the prediction model.
+- `tests/test_evaluation.py` — `evaluate_classifier` returns the expected
+  metric keys and shape-consistent predictions; `find_best_threshold` stays in
+  `[0,1]` and never underperforms the default 0.5 threshold; business-impact
+  summary runs.
+- `tests/test_inference_feature_builder.py` — the inference feature vector has
+  exactly the columns both trained models expect, in order (no serving-time
+  feature-name mismatch), and mirrors training's zero-safe arithmetic and bin
+  edges.
+
 ## Usage
 
 Run the full pipeline:
