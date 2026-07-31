@@ -20,6 +20,10 @@ from src.features.feature_engineering import (
     create_duration_features,
     create_time_context_features,
     create_momentum_features,
+    create_publish_time_features,
+    create_title_features,
+    create_extra_engagement_features,
+    create_trajectory_features,
     create_eng_features,
 )
 
@@ -124,3 +128,44 @@ def test_view_count_log_present_for_prediction(sample_snapshot_df):
     assert "view_count_log" in out.columns
     expected = np.log1p(sample_snapshot_df["view_count"])
     assert np.allclose(out["view_count_log"].values, expected.values)
+
+
+def test_title_features_extracted(sample_snapshot_df):
+    out = create_title_features(sample_snapshot_df.copy())
+    assert out["title_has_viral_keyword"].iloc[0] == 1.0
+    assert out["title_has_hashtag"].iloc[0] == 1.0
+    assert out["title_has_number"].iloc[-1] == 0.0
+    assert (out["title_caps_ratio"] >= 0.0).all() and (out["title_caps_ratio"] <= 1.0).all()
+
+
+def test_publish_time_features_extracted(sample_snapshot_df):
+    out = create_publish_time_features(sample_snapshot_df.copy())
+    # First row published at 18:00 -> prime time
+    assert out["publish_is_prime_time"].iloc[0] == 1.0
+    # Last row published at 20:00 -> prime time
+    assert out["publish_is_prime_time"].iloc[-1] == 1.0
+    assert (out["publish_hour"] >= 0).all() and (out["publish_hour"] <= 23).all()
+    assert (out["publish_month"] >= 1).all() and (out["publish_month"] <= 12).all()
+
+
+def test_extra_engagement_features_no_div_by_zero(sample_snapshot_df):
+    df = sample_snapshot_df.copy()
+    df.loc[0, ["like_count", "comment_count", "view_count"]] = [0, 0, 0]
+    df = create_velocity_features(df)
+    out = create_extra_engagement_features(df)
+    assert np.isfinite(out["like_to_comment_ratio"].iloc[0]) or np.isnan(out["like_to_comment_ratio"].iloc[0])
+    assert np.isfinite(out["engagement_per_day_log"].iloc[0])
+
+
+def test_trajectory_features_use_first_snapshot_only(sample_snapshot_df):
+    df = sample_snapshot_df.copy()
+    df["collected_at"] = pd.to_datetime(df["collected_at"])
+    out = create_trajectory_features(df)
+    # First snapshot of each video has 0 days_since_first_snapshot
+    first_rows = out.groupby("video_id").head(1)
+    assert (first_rows["days_since_first_snapshot"] == 0.0).all()
+    # views_ratio_to_first is 1.0 at first snapshot
+    assert np.allclose(first_rows["views_ratio_to_first"], 1.0)
+    # Later snapshots have values > 1 if views grew
+    later = out[out["days_since_first_snapshot"] > 0]
+    assert (later["views_ratio_to_first"] >= 1.0).all()

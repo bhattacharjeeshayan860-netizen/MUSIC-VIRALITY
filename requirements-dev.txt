@@ -1,0 +1,12 @@
+# Development / testing dependencies.
+# Install in addition to requirements.txt:
+#   pip install -r requirements.txt -r requirements-dev.txt
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+httpx>=0.27.0
+
+# Linting / formatting
+black>=24.0.0
+pylint>=3.0.0

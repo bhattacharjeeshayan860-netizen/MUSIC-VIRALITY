@@ -8,27 +8,36 @@ comment_count, subscriber_count, day_since_published, duration_seconds) so the
 feature engineering and labeling code under test operates on the columns it
 expects in production.
 """
+import os
+import sys
+
+# Ensure the repository root is on sys.path so `from src...` imports resolve
+# everywhere (local runs, CI, pytest from any cwd).
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
 import pandas as pd
 import pytest
 
 
-def _snapshot_rows():
+def _snapshot_rows(title_prefix="Song"):
     rows = [
-        ("vid_1", "2024-01-01", 2_000_000, 50_000, 4_000, 500_000, 5, 240),
-        ("vid_1", "2024-01-03", 9_000_000, 180_000, 12_000, 500_000, 7, 240),
-        ("vid_1", "2024-01-05", 12_000_000, 250_000, 20_000, 500_000, 9, 240),
-        ("vid_2", "2024-01-01", 50_000, 1_500, 120, 20_000, 10, 200),
-        ("vid_2", "2024-01-05", 120_000, 3_000, 200, 20_000, 14, 200),
-        ("vid_3", "2024-01-01", 25_000_000, 800_000, 60_000, 8_000_000, 30, 300),
-        ("vid_3", "2024-01-05", 40_000_000, 1_200_000, 90_000, 8_000_000, 34, 300),
-        ("vid_4", "2024-01-01", 800_000, 20_000, 1_500, 90_000, 3, 45),
+        ("vid_1", "2024-01-01", 2_000_000, 50_000, 4_000, 500_000, 5, 240, f"{title_prefix} One - Official Music Video #trending", "2023-12-27T18:00:00Z"),
+        ("vid_1", "2024-01-03", 9_000_000, 180_000, 12_000, 500_000, 7, 240, f"{title_prefix} One - Official Music Video #trending", "2023-12-27T18:00:00Z"),
+        ("vid_1", "2024-01-05", 12_000_000, 250_000, 20_000, 500_000, 9, 240, f"{title_prefix} One - Official Music Video #trending", "2023-12-27T18:00:00Z"),
+        ("vid_2", "2024-01-01", 50_000, 1_500, 120, 20_000, 10, 200, f"{title_prefix} Two - freestyle", "2023-12-22T10:00:00Z"),
+        ("vid_2", "2024-01-05", 120_000, 3_000, 200, 20_000, 14, 200, f"{title_prefix} Two - freestyle", "2023-12-22T10:00:00Z"),
+        ("vid_3", "2024-01-01", 25_000_000, 800_000, 60_000, 8_000_000, 30, 300, f"{title_prefix} Three (Official)", "2023-12-02T14:00:00Z"),
+        ("vid_3", "2024-01-05", 40_000_000, 1_200_000, 90_000, 8_000_000, 34, 300, f"{title_prefix} Three (Official)", "2023-12-02T14:00:00Z"),
+        ("vid_4", "2024-01-01", 800_000, 20_000, 1_500, 90_000, 3, 45, f"{title_prefix} Four", "2023-12-29T20:00:00Z"),
     ]
     return pd.DataFrame(
         rows,
         columns=[
             "video_id", "collected_at", "view_count", "like_count",
             "comment_count", "subscriber_count", "day_since_published",
-            "duration_seconds",
+            "duration_seconds", "title", "published_at",
         ],
     )
 

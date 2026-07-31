@@ -35,6 +35,11 @@ Thumbs.db
 # Logs
 *.log
 
+# Test / coverage artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+
 # Dependencies
 dist/
 build/

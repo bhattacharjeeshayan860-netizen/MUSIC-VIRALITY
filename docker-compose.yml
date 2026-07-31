@@ -1,0 +1,80 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Docker Compose — convenient local/orchestrated runs.
+#
+# Services:
+#   • dashboard      — Streamlit detection dashboard (default URL http://localhost:8501)
+#   • dashboard-pred — Streamlit prediction dashboard (default URL http://localhost:8502)
+#   • api            — FastAPI service (default URL http://localhost:8000)
+#   • pipeline       — run the full training pipeline (one-off task)
+#
+# Usage:
+#   docker compose up dashboard
+#   docker compose up dashboard-pred
+#   docker compose up api
+#   docker compose run --rm pipeline
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: music-virality:latest
+    container_name: mv-dashboard
+    ports:
+      - "8501:8501"
+    command:
+      - python
+      - -m
+      - streamlit
+      - run
+      - dashboard.py
+      - --server.port=8501
+      - --server.address=0.0.0.0
+      - --server.headless=true
+
+  dashboard-pred:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: music-virality:latest
+    container_name: mv-dashboard-pred
+    ports:
+      - "8502:8501"
+    command:
+      - python
+      - -m
+      - streamlit
+      - run
+      - dashboard_prediction.py
+      - --server.port=8501
+      - --server.address=0.0.0.0
+      - --server.headless=true
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: music-virality:latest
+    container_name: mv-api
+    ports:
+      - "8000:8000"
+    command:
+      - python
+      - -m
+      - uvicorn
+      - src.api.app:app
+      - --host=0.0.0.0
+      - --port=8000
+
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: music-virality:latest
+    container_name: mv-pipeline
+    profiles:
+      - pipeline
+    command:
+      - python
+      - main.py

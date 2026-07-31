@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import os
+import re
+from datetime import datetime
 
 
 # ─────────────────────────────────────────────
@@ -192,6 +194,165 @@ def create_momentum_features(df):
     return df
 
 
+def create_publish_time_features(df):
+    """
+    Publish-time metadata signals.
+
+    WHY THESE ARE SAFE:
+    - They are fixed at upload time and cannot leak future information.
+    - The model can learn whether certain upload windows correlate with
+      eventual virality (e.g., prime-time uploads, weekend music drops).
+
+    WHY ADD THEM: the raw data has `published_at` but the pipeline was not
+    using it at all. These give the model another views-agnostic signal that is
+    available in a real early-warning setting.
+    """
+    if "published_at" not in df.columns:
+        return df
+
+    pub = pd.to_datetime(df["published_at"], errors="coerce").dt.tz_localize(None)
+
+    # Hour / day-of-week are intuitive for release strategy
+    df["publish_hour"] = pub.dt.hour
+    df["publish_day_of_week"] = pub.dt.dayofweek  # 0=Mon ... 6=Sun
+    df["publish_is_weekend"] = df["publish_day_of_week"].isin([5, 6]).astype(float)
+
+    # Prime time for Indian/global music drops (18:00-22:00 local)
+    df["publish_is_prime_time"] = pub.dt.hour.between(18, 22).astype(float)
+
+    # Month can capture seasonal release campaigns / festivals
+    df["publish_month"] = pub.dt.month.astype(float)
+
+    return df
+
+
+def create_title_features(df):
+    """
+    Title-text features.
+
+    WHY THESE ARE SAFE:
+    - A video's title is known at upload time; it cannot leak future views.
+    - Title style (hashtags, emojis, caps, viral keywords) is a genuine
+      marketing signal that correlates with how the artist/promoter expects
+      the content to perform.
+
+    WHY ADD THEM: the raw data has `title` but it was completely unused.
+    Short-form and aggressively-titled content often has different viral
+    mechanics than traditional music videos.
+    """
+    if "title" not in df.columns:
+        return df
+
+    title = df["title"].fillna("").astype(str)
+
+    df["title_length"] = title.str.len().astype(float)
+    df["title_word_count"] = title.str.split().str.len().astype(float)
+
+    # Percentage of uppercase letters in the title (0-1, robust to empty titles)
+    def _upper_ratio(t):
+        letters = [c for c in t if c.isalpha()]
+        if not letters:
+            return 0.0
+        return sum(1 for c in letters if c.isupper()) / len(letters)
+
+    df["title_caps_ratio"] = title.apply(_upper_ratio).astype(float)
+
+    # Attention-grabbing patterns
+    df["title_has_emoji"] = title.str.contains(r"[\U0001F300-\U0001FAFF]|[\u2600-\u26FF]", regex=True, na=False).astype(float)
+    df["title_has_number"] = title.str.contains(r"\d", regex=True, na=False).astype(float)
+    df["title_has_special_char"] = title.str.contains(r"[!?*#]", regex=True, na=False).astype(float)
+    df["title_has_hashtag"] = title.str.contains(r"#", regex=True, na=False).astype(float)
+
+    # Common music-promotion keywords
+    viral_keywords = [
+        "official", "music video", "mv", "remix", "cover", "live", "acoustic",
+        "ft", "feat", "ft.", "feat.", "new song", "latest", "trending", "viral",
+    ]
+    # Non-capturing group avoids the pandas .str.contains warning about regex groups.
+    pattern = r"\b(?:" + "|".join(re.escape(kw) for kw in viral_keywords) + r")\b"
+    df["title_has_viral_keyword"] = (
+        title.str.lower().str.contains(pattern, regex=True, na=False).astype(float)
+    )
+
+    return df
+
+
+def create_extra_engagement_features(df):
+    """
+    Extra engagement/audience ratio features.
+
+    WHY THESE ARE SAFE:
+    - All are ratios or per-day rates derived from the same snapshot.
+    - They do not include raw `view_count_log` (which would trivialize
+      detection), but they do normalize views/likes/comments by channel size
+    and age.
+
+    WHY ADD THEM: the pre-viral slice needs stronger signals that are not
+    dominated by absolute view count. Ratios like `comments_to_subs_ratio` and
+    `engagement_per_day` measure *intensity* of audience reaction.
+    """
+    views = df["view_count"]
+    likes = df["like_count"]
+    comments = df["comment_count"]
+    days = df["day_since_published"].clip(lower=1)
+
+    # Engagement per day — total engagement activity normalised by age
+    df["engagement_per_day"] = (likes + 2 * comments) / days
+
+    # Inverse ratio: likes per comment (high = lots of likes, little discussion)
+    comment_safe = comments.replace(0, np.nan)
+    df["like_to_comment_ratio"] = (likes / comment_safe).replace([np.inf, -np.inf], np.nan)
+
+    # Comments relative to subscriber base (channel-independent discussion intensity)
+    if "subscriber_count" in df.columns:
+        subs = df["subscriber_count"].replace(0, np.nan)
+        df["comments_to_subs_ratio"] = comments / subs
+        df["likes_to_subs_ratio"] = likes / subs
+        df["engagement_to_subs_ratio"] = (likes + 2 * comments) / subs
+
+    # Robust log versions of velocities (prediction-friendly; detection excludes raw views)
+    df["likes_per_day_log"] = np.log1p(df["likes_per_day"])
+    df["comments_per_day_log"] = np.log1p(df["comments_per_day"])
+    df["engagement_per_day_log"] = np.log1p(df["engagement_per_day"])
+
+    return df
+
+
+def create_trajectory_features(df):
+    """
+    Historical trajectory features for videos with multiple snapshots.
+
+    WHY THESE ARE SAFE:
+    - They only use *previous* snapshots of the same video.
+    - The first snapshot gets NaN/0 values, which the imputer fills.
+
+    WHY ADD THEM: the current diff features only compare adjacent snapshots.
+    These give a longer-horizon view of how the video has grown since it was
+    first observed, which is especially useful for the prediction task.
+    """
+    if "collected_at" not in df.columns or "video_id" not in df.columns:
+        return df
+
+    df = df.sort_values(by=["video_id", "collected_at"]).reset_index(drop=True)
+
+    first_snapshot = df.groupby("video_id").first()[["collected_at", "view_count"]]
+    first_snapshot = first_snapshot.rename(
+        columns={"collected_at": "first_snapshot_at", "view_count": "first_snapshot_views"}
+    )
+    df = df.merge(first_snapshot, on="video_id", how="left")
+
+    df["days_since_first_snapshot"] = (
+        (df["collected_at"] - df["first_snapshot_at"]).dt.total_seconds() / 86_400.0
+    )
+
+    first_views_safe = df["first_snapshot_views"].replace(0, np.nan)
+    df["views_ratio_to_first"] = (df["view_count"] / first_views_safe).replace([np.inf, -np.inf], np.nan)
+
+    df = df.drop(columns=["first_snapshot_at", "first_snapshot_views"])
+
+    return df
+
+
 # ─────────────────────────────────────────────
 # MAIN FEATURE BUILDER
 # ─────────────────────────────────────────────
@@ -201,12 +362,22 @@ def create_eng_features(df):
     Run all feature groups in order.
     Preserves your original function name and return contract.
     """
+    # Normalize timestamp columns once so downstream functions can rely on them
+    # being datetime even when create_eng_features is called directly on raw data.
+    for col in ["collected_at", "published_at"]:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors="coerce").dt.tz_localize(None)
+
     df = create_ratio_features(df)
     df = create_scale_features(df)
     df = create_velocity_features(df)
     df = create_channel_authority_features(df)
     df = create_duration_features(df)
     df = create_time_context_features(df)
+    df = create_extra_engagement_features(df)
+    df = create_trajectory_features(df)
+    df = create_publish_time_features(df)
+    df = create_title_features(df)
     df = create_momentum_features(df)
     return df
 

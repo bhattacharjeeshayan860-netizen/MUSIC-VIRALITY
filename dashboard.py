@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import datetime
 
 from src.inference import build_feature_vector
 
@@ -73,9 +74,16 @@ with col2:
 # match what the model was trained on (19 features). Hardcoding them here is what
 # previously broke inference (extra views_per_day / days_log columns).
 # ─────────────────────────────────────────────
+# Optional metadata used by safe title / publish-time features
+with st.expander("Advanced metadata (optional)"):
+    title = st.text_input("Video title", value="Official Music Video", key="title")
+    published_at = st.date_input("Published date", value=datetime.date.today(), key="published_at")
+    published_dt = datetime.datetime.combine(published_at, datetime.time.min)
+
 features = build_feature_vector(
     views=views, likes=likes, comments=comments,
     subscribers=subscribers, days_old=days_old, duration_seconds=duration_seconds,
+    title=title, published_at=published_dt, model_type="detection",
 )
 
 # Interpretability values for the report below
@@ -170,7 +178,7 @@ st.sidebar.header("ℹ️ About This Model")
 st.sidebar.write(f"""
 **Detection Model**
 - Algorithm: {threshold_info.get('model_name', 'XGBoost')}
-- Features: 19 engineered signals
+- Features: {len(features.columns)} engineered signals
 - Threshold: {optimal_threshold:.4f}
 
 **Virality Definition:**

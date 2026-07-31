@@ -21,11 +21,24 @@ import pandas as pd
 # ─────────────────────────────────────────────
 
 FEATURE_COLUMNS = [
+    # --- Scale features (current view info is allowed because label is future) ---
+    "view_count_log",
+
     # --- Engagement ratios ---
     "like_rate",
     "comment_rate",
     "engagement_rate",
     "comment_like_ratio",
+
+    # --- Extra engagement / intensity signals (same-snapshot, robust) ---
+    "engagement_per_day",
+    "like_to_comment_ratio",
+    "comments_to_subs_ratio",
+    "engagement_to_subs_ratio",
+    "likes_to_subs_ratio",
+    "likes_per_day_log",
+    "comments_per_day_log",
+    "engagement_per_day_log",
 
     # --- Velocity ---
     "likes_per_day",
@@ -37,6 +50,10 @@ FEATURE_COLUMNS = [
     "views_diff",
     "likes_diff",
     "engagement_diff",
+
+    # --- Historical trajectory (uses only prior snapshots of the same video) ---
+    "days_since_first_snapshot",
+    "views_ratio_to_first",
 
     # --- Channel authority ---
     "subscriber_count_log",
@@ -50,6 +67,23 @@ FEATURE_COLUMNS = [
     # --- Video format ---
     "duration_log",
     "is_short_video",
+
+    # --- Publish-time signals (known at upload, cannot leak future) ---
+    "publish_hour",
+    "publish_day_of_week",
+    "publish_is_weekend",
+    "publish_is_prime_time",
+    "publish_month",
+
+    # --- Title-text signals (known at upload, cannot leak future) ---
+    "title_length",
+    "title_word_count",
+    "title_caps_ratio",
+    "title_has_emoji",
+    "title_has_number",
+    "title_has_special_char",
+    "title_has_hashtag",
+    "title_has_viral_keyword",
 
     # --- Snapshot metadata ---
     # snapshot_rank is causally available at inference (1 for a live snapshot).

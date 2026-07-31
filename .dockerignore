@@ -1,0 +1,72 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# .dockerignore — keep the build context small and free of secrets/cache/data.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Version control
+.git
+.gitignore
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Secrets
+.env
+.env.local
+.env.*
+!.env.example
+
+# Data — raw and processed datasets can be large; mount them at runtime if needed.
+# Trained model artifacts under models/trained/ are kept (small .pkl files).
+data/
+!data/.gitkeep
+
+# Explainability plots are large and can be regenerated; exclude from image.
+models/explainability/
+
+# Notebooks and exploration outputs
+notebooks/
+*.ipynb
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Tests are not needed in the runtime image (run them in CI instead).
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build artifacts
+archive/
+build/
+dist/
+*.egg-info/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Docker files themselves do not need to be inside the image
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Dev requirements are not needed in the runtime image
+requirements-dev.txt

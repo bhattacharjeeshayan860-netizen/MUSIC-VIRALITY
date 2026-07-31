@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import datetime
 
 from src.inference import build_feature_vector
 
@@ -74,9 +75,16 @@ with col2:
 # previously broke inference (extra view_count_log / days_log / views_per_day / ...
 # columns the model never saw).
 # ─────────────────────────────────────────────
+# Optional metadata used by safe title / publish-time features
+with st.expander("Advanced metadata (optional)"):
+    title = st.text_input("Video title", value="Official Music Video", key="title")
+    published_at = st.date_input("Published date", value=datetime.date.today(), key="published_at")
+    published_dt = datetime.datetime.combine(published_at, datetime.time.min)
+
 features = build_feature_vector(
     views=views, likes=likes, comments=comments,
     subscribers=subscribers, days_old=days_old, duration_seconds=duration_seconds,
+    title=title, published_at=published_dt, model_type="prediction",
 )
 
 # Interpretability values for the report below
@@ -200,7 +208,7 @@ st.sidebar.header("ℹ️ About This Model")
 st.sidebar.write(f"""
 **Prediction Model (Momentum Stability)**
 - Algorithm: {threshold_info.get('model_name', 'XGBoost')}
-- Features: 19 engineered signals
+- Features: {len(features.columns)} engineered signals
 - Optimal threshold: {optimal_threshold:.4f}
 
 Predicts whether a video's *current growth trajectory*
