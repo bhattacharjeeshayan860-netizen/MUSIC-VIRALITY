@@ -258,7 +258,7 @@ def create_title_features(df):
     df["title_caps_ratio"] = title.apply(_upper_ratio).astype(float)
 
     # Attention-grabbing patterns
-    df["title_has_emoji"] = title.str.contains(r"[\U0001F300-\U0001FAFF]|[\u2600-\u26FF]", regex=True, na=False).astype(float)
+    # df["title_has_emoji"] = title.str.contains(r"[\U0001F300-\U0001FAFF]|[\u2600-\u26FF]", regex=True, na=False).astype(float)
     df["title_has_number"] = title.str.contains(r"\d", regex=True, na=False).astype(float)
     df["title_has_special_char"] = title.str.contains(r"[!?*#]", regex=True, na=False).astype(float)
     df["title_has_hashtag"] = title.str.contains(r"#", regex=True, na=False).astype(float)
